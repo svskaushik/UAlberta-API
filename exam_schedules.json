@@ -1,0 +1,16 @@
+{
+    "status": 200,
+    "data": [
+        [
+            "Course",
+            "Section",
+            "Date",
+            "Time",
+            "Length",
+            "Completion Window",
+            "Location"
+        ]
+    ],
+    "length": 1,
+    "generated": "2024-09-19 07:24:57am UTC"
+}
