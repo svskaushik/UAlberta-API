@@ -2,6 +2,7 @@ import json
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from typing import Optional
+from api.endpoints import router as api_router
 
 
 app = FastAPI(
@@ -239,6 +240,8 @@ def get_seminars_for_course(course_code: str, term_code: str):
     except:
         return {"detail": "No Seminars for this course."}
 
+
+app.include_router(api_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
