@@ -21,10 +21,7 @@ services:
   api:
     build: .
     ports:
-      - target: 8100
-        published: 8100
-        protocol: tcp
-        mode: host
+      - "8100:8100"
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/university_data
       DEBUG: "True"
