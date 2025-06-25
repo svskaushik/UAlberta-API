@@ -1,247 +1,139 @@
 import json
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from typing import Optional
-from api.endpoints import router as api_router
+import os
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
+
+from api.endpoints import router as api_router
+from database.models import db_manager
 
 app = FastAPI(
-    title="Unofficial University of Alberta API",
-    description="API for course, faculty, subject and class schedules.",
-    version="2020.2021", # The Year it was scraped
+    title="Multi-University Data API",
+    description="API for course, faculty, subject and class schedules from multiple universities.",
+    version="2.0.0",
 )
 
+# Initialize database
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables on startup"""
+    db_manager.create_tables()
+
+app.include_router(api_router)
+
+# Legacy endpoints for backward compatibility (now deprecated)
 def open_and_return(file_name):
     """
     Open the file and return what's in it.
     """
-    with open(file_name, "r") as file:
-        data = json.load(file)
-        return data
-
+    try:
+        with open(file_name, "r") as file:
+            data = json.load(file)
+            return data
+    except FileNotFoundError:
+        return {"error": "Data not found. Please use the new database-backed endpoints at /api/{university}/"}
 
 @app.get("/", tags=["Endpoints"])
 def endpoints():
     """
     All the available endpoints
     """
-    return [{"endpoints": {
-                "/docs",
+    return {
+        "message": "Welcome to the Multi-University Data API",
+        "new_endpoints": {
+            "/api/{university}/faculties": "Get faculties for a university",
+            "/api/{university}/subjects": "Get subjects for a university", 
+            "/api/{university}/courses": "Get courses for a university (with pagination and search)",
+            "/api/{university}/courses/{course_code}": "Get specific course details",
+            "/api/{university}/exam_schedules": "Get exam schedules",
+            "/api/{university}/scrape_all": "Trigger data scraping (POST)",
+            "/api/{university}/sync_status": "Get synchronization status"
+        },
+        "supported_universities": ["ualberta"],
+        "legacy_endpoints": {
+            "note": "Legacy endpoints are deprecated. Please use /api/{university}/ endpoints instead.",
+            "endpoints": [
                 "/faculties",
-                "/faculties/{faculty_code}",
-                "/subjects",
-                "/subjects/{subject_code}",
-                "/courses/",
-                "/courses/{course_code}"
-            }}]
+                "/subjects", 
+                "/courses"
+            ]
+        }
+    }
 
-
-# *******************************************
-# Faculty-related enpoints
-# *******************************************
-@app.get("/faculties", tags=["Faculties"])
-def get_faculties():
+# Legacy endpoints (deprecated but maintained for backward compatibility)
+@app.get("/faculties", tags=["Legacy"], deprecated=True)
+def get_faculties_legacy():
     """
-    The different faculties at the University.
+    DEPRECATED: Use /api/ualberta/faculties instead
     """
-    faculty_file = "data/faculties.json"
+    faculty_file = "data/ualberta/faculties.json"
     faculties = open_and_return(faculty_file)
     return [faculties]
 
-@app.get("/faculties/{faculty_code}", tags=["Faculties"])
-def get_faculty(faculty_code: str):
+@app.get("/faculties/{faculty_code}", tags=["Legacy"], deprecated=True)
+def get_faculty_legacy(faculty_code: str):
     """
-    Get details about one faculty.
+    DEPRECATED: Use /api/ualberta/faculties instead
     """
-    faculty_file = "data/faculties.json"
+    faculty_file = "data/ualberta/faculties.json"
     faculties = open_and_return(faculty_file)
+    if isinstance(faculties, dict) and "error" in faculties:
+        return faculties
     faculty_code = faculty_code.upper()
     if faculty_code not in faculties:
         raise HTTPException(status_code=404, detail="Faculty not found")
     return faculties[faculty_code]
 
-# *******************************************
-# Subject-related enpoints
-# *******************************************
-@app.get("/subjects", tags=["Subjects"])
-def get_subjects():
+@app.get("/subjects", tags=["Legacy"], deprecated=True)
+def get_subjects_legacy():
     """
-    The different subjects at the university.
+    DEPRECATED: Use /api/ualberta/subjects instead
     """
-    subject_file = "data/subjects.json"
+    subject_file = "data/ualberta/subjects.json"
     subjects = open_and_return(subject_file)
     return [subjects]
 
-
-@app.get("/subjects/{subject_code}", tags=["Subjects"])
-def get_subject(subject_code: str):
+@app.get("/subjects/{subject_code}", tags=["Legacy"], deprecated=True)
+def get_subject_legacy(subject_code: str):
     """
-    Get details about one subject.
+    DEPRECATED: Use /api/ualberta/subjects instead
     """
-    subject_file = "data/subjects.json"
+    subject_file = "data/ualberta/subjects.json"
     subjects = open_and_return(subject_file)
-    
+    if isinstance(subjects, dict) and "error" in subjects:
+        return subjects
     if subject_code not in subjects:
-            raise HTTPException(status_code=404, detail="Subject not found")
+        raise HTTPException(status_code=404, detail="Subject not found")
     return subjects[subject_code]
 
-
-# *******************************************
-# Course-related enpoints
-# *******************************************
-@app.get("/courses", tags=["Courses"])
-def get_courses():
+@app.get("/courses", tags=["Legacy"], deprecated=True)
+def get_courses_legacy():
     """
-    Courses offered in 2020/2021 at the University of Alberta.
+    DEPRECATED: Use /api/ualberta/courses instead
     """
-    course_file = "data/courses.json"
+    course_file = "data/ualberta/courses.json"
     courses = open_and_return(course_file)
-    try:
-        return [courses]
-    except:
-        return {"Error": "Not Found"}
+    return [courses]
 
-
-@app.get("/courses/{course_code}", tags=["Courses"])
-def get_course(course_code: str):
+@app.get("/courses/{course_code}", tags=["Legacy"], deprecated=True)
+def get_course_legacy(course_code: str):
     """
-    Get details about one course.
+    DEPRECATED: Use /api/ualberta/courses/{course_code} instead
     """
-    course_file = "data/courses.json"
+    course_file = "data/ualberta/courses.json"
     courses = open_and_return(course_file)
+    if isinstance(courses, dict) and "error" in courses:
+        return courses
     course_code = course_code.upper()
-
     if course_code not in courses:
-            raise HTTPException(status_code=404, detail="Course not found. Make sure there is no space (e.g. CMPUT401 and not CMPUT 401)")
+        raise HTTPException(status_code=404, detail="Course not found. Make sure there is no space (e.g. CMPUT401 and not CMPUT 401)")
     return courses[course_code]
 
-@app.get("/courses/{course_code}/prerequisites", tags=["Courses"])
-def get_course_prerequisites(course_code: str):
-    """
-    Get prerequisites for a specific course.
-    """
-    course_file = "data/courses.json"
-    courses = open_and_return(course_file)
-    course_code = course_code.upper()
-
-    # Check if the course exists
-    if course_code not in courses:
-        raise HTTPException(status_code=404, detail="Course not found. Make sure there is no space (e.g., CMPUT401 and not CMPUT 401)")
-
-    # Extract prerequisites
-    prerequisites = courses[course_code].get("course_prerequisites", "No prerequisites listed.")
-
-    return {"course_code": course_code, "prerequisites": prerequisites}
-
-
-# *******************************************
-# ClassSchedule-related enpoints
-# *******************************************
-
-@app.get("/class_schedules/", tags=["ClassSchedules"])
-def get_class_schedules():
-    """
-    Get all course data for an academic year
-    """
-    class_schedules_file = "data/class_schedules.json"
-    class_schedules = open_and_return(class_schedules_file)
-    try:
-        return class_schedules
-    except:
-        return {"Error": "Not Found"}
-    
-
-@app.get("/class_schedules/{course_code}", tags=["ClassSchedules"])
-def get_class_schedule(course_code: str):
-    """
-    Get class schedule for a specific course.
-    """
-    class_schedules_file = "data/class_schedules.json"
-    class_schedules = open_and_return(class_schedules_file)
-    course_code = course_code.upper()
-    if course_code not in class_schedules:
-        raise HTTPException(status_code=404, detail="Course not found")
-    return class_schedules[course_code]
-
-
-@app.get("/class_schedules/{course_code}/{term_code}", tags=["ClassSchedules"])
-def get_class_schedule_for_term(term_code: str, course_code: str):
-    """
-    Get class schedule for a specific course in a specific term.
-    """
-    class_schedules_file = "data/class_schedules.json"
-    class_schedules = open_and_return(class_schedules_file)
-    course_code = course_code.upper()
-
-    if course_code not in class_schedules:
-            raise HTTPException(status_code=404, detail="Course not found")
-    if term_code not in class_schedules[course_code]:
-            raise HTTPException(status_code=404, detail=f"{term_code} not found in {course_code}.")
-    return class_schedules[course_code][term_code]
-
-
-@app.get("/class_schedules/lectures/{course_code}/{term_code}", tags=["ClassSchedules"])
-def get_lectures_for_course(course_code: str, term_code: str):
-    """
-    Get class data for lectures for a specific course in a specific term.
-    """
-    class_schedules_file = "data/class_schedules.json"
-    class_schedules = open_and_return(class_schedules_file)
-    course_code = course_code.upper()
-    # term_code = term_code.upper()
-
-    if course_code not in class_schedules:
-        raise HTTPException(status_code=404, detail="Course not found")
-    if term_code not in class_schedules[course_code]:
-        raise HTTPException(status_code=404, detail=f"{course_code} not offered in {term_code}.")
-
-    try:
-        return class_schedules[course_code][term_code]["Lectures"]
-    except:
-        return {"detail": "No lectures for this course."}
-
-
-@app.get("/class_schedules/labs/{course_code}/{term_code}", tags=["ClassSchedules"])
-def get_labs_for_course(course_code: str, term_code: str):
-    """
-    Get class data for labs for a specific course in a specific term.
-    """
-    class_schedules_file = "data/class_schedules.json"
-    class_schedules = open_and_return(class_schedules_file)
-    course_code = course_code.upper()
-    # term_code = term_code.upper()
-
-    if course_code not in class_schedules:
-        raise HTTPException(status_code=404, detail="Course not found")
-    if term_code not in class_schedules[course_code]:
-        raise HTTPException(status_code=404, detail=f"{course_code} not found in {term_code}.")
-    try:
-        return class_schedules[course_code][term_code]["Labs"]
-    except:
-        return {"detail": "No labs for this course."}
-
-@app.get("/class_schedules/seminars/{course_code}/{term_code}", tags=["ClassSchedules"])
-def get_seminars_for_course(course_code: str, term_code: str):
-    """
-    Get class data for seminars for a specific course in a specific term.
-    """
-    class_schedules_file = "data/class_schedules.json"
-    class_schedules = open_and_return(class_schedules_file)
-    course_code = course_code.upper()
-    # term_code = term_code.upper()
-
-    if course_code not in class_schedules:
-        raise HTTPException(status_code=404, detail="Course not found")
-    if term_code not in class_schedules[course_code]:
-        raise HTTPException(status_code=404, detail=f"{course_code} not offered in {term_code}.")
-
-    try:
-        return class_schedules[course_code][term_code]["Seminars"]
-    except:
-        return {"detail": "No Seminars for this course."}
-
-
-app.include_router(api_router)
-
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv('API_PORT', 8000))
+    host = os.getenv('API_HOST', '0.0.0.0')
+    uvicorn.run(app, host=host, port=port)
