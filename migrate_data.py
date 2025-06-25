@@ -55,7 +55,7 @@ def migrate_json_to_database():
                     code=faculty_code,
                     name=faculty_info.get('faculty_name', faculty_info.get('name', '')),
                     website_url=faculty_info.get('faculty_link'),
-                    metadata={
+                    meta={
                         'migrated_at': str(datetime.utcnow()),
                         'original_data': faculty_info
                     }
@@ -76,7 +76,7 @@ def migrate_json_to_database():
                     name=subject_info.get('name', ''),
                     website_url=subject_info.get('link'),
                     faculty_associations=subject_info.get('faculties', []),
-                    metadata={
+                    meta={
                         'migrated_at': str(datetime.utcnow()),
                         'original_data': subject_info
                     }
@@ -133,7 +133,7 @@ def migrate_json_to_database():
                         'lab_hours': course_info.get('course_hrs_for_labtime'),
                         'schedule': course_info.get('course_schedule')
                     },
-                    metadata={
+                    meta={
                         'migrated_at': str(datetime.utcnow()),
                         'original_data': course_info
                     }
@@ -147,12 +147,12 @@ def migrate_json_to_database():
             with open(exam_file, 'r') as f:
                 exam_data = json.load(f)
             
-            # Store exam data in university metadata for now
-            university.metadata = university.metadata or {}
-            university.metadata['exam_schedules'] = exam_data
-            university.metadata['exam_schedules_migrated_at'] = str(datetime.utcnow())
+            # Store exam data in university meta for now
+            university.meta = university.meta or {}
+            university.meta['exam_schedules'] = exam_data
+            university.meta['exam_schedules_migrated_at'] = str(datetime.utcnow())
             db.commit()
-            print("  Migrated exam schedules to university metadata")
+            print("  Migrated exam schedules to university meta")
         
         print("Migration completed successfully!")
         

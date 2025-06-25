@@ -19,7 +19,7 @@ class University(Base):
     region = Column(String(100))
     website_url = Column(Text)
     api_config = Column(JSONB)
-    metadata = Column(JSONB)
+    meta = Column(JSONB)  # Renamed from metadata
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
     
@@ -39,7 +39,7 @@ class Faculty(Base):
     name = Column(String(255), nullable=False)
     website_url = Column(Text)
     dean_info = Column(JSONB)
-    metadata = Column(JSONB)
+    meta = Column(JSONB)  # Renamed from metadata
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
     
@@ -56,7 +56,7 @@ class Subject(Base):
     description = Column(Text)
     website_url = Column(Text)
     faculty_associations = Column(JSONB)
-    metadata = Column(JSONB)
+    meta = Column(JSONB)  # Renamed from metadata
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
     
@@ -81,7 +81,7 @@ class Course(Base):
     website_url = Column(Text)
     fees = Column(JSONB)
     schedule_info = Column(JSONB)
-    metadata = Column(JSONB)
+    meta = Column(JSONB)  # Renamed from metadata
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
     
@@ -102,7 +102,7 @@ class Term(Base):
     registration_start = Column(Date)
     registration_end = Column(Date)
     is_active = Column(Boolean, default=False)
-    metadata = Column(JSONB)
+    meta = Column(JSONB)  # Renamed from metadata
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     
     # Relationships
@@ -123,7 +123,7 @@ class CourseSection(Base):
     status = Column(String(50), default='open')
     instructor_info = Column(JSONB)
     schedule = Column(JSONB)
-    metadata = Column(JSONB)
+    meta = Column(JSONB)  # Renamed from metadata
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
     
@@ -144,7 +144,7 @@ class ExamSchedule(Base):
     location = Column(String(255))
     duration_minutes = Column(Integer)
     special_instructions = Column(Text)
-    metadata = Column(JSONB)
+    meta = Column(JSONB)  # Renamed from metadata
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     
     # Relationships
@@ -165,7 +165,7 @@ class Instructor(Base):
     research_areas = Column(ARRAY(Text))
     ratings = Column(JSONB)
     salary_info = Column(JSONB)
-    metadata = Column(JSONB)
+    meta = Column(JSONB)  # Renamed from metadata
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
     
@@ -184,7 +184,7 @@ class SyncLog(Base):
     error_details = Column(JSONB)
     started_at = Column(TIMESTAMP)
     completed_at = Column(TIMESTAMP)
-    metadata = Column(JSONB)
+    meta = Column(JSONB)  # Renamed from metadata
 
 # Database connection and session management
 class DatabaseManager:

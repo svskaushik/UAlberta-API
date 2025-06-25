@@ -88,7 +88,7 @@ class UAlbertaScraper(BaseScraper):
                     code=faculty_code,
                     name=faculty_name,
                     website_url=faculty_link,
-                    metadata={'scraped_at': str(datetime.utcnow())}
+                    meta={'scraped_at': str(datetime.utcnow())}
                 )
                 
                 faculty_data[faculty_code] = {
@@ -166,7 +166,7 @@ class UAlbertaScraper(BaseScraper):
                                 name=subject_name,
                                 website_url=subject_link,
                                 faculty_associations=[faculty_code],
-                                metadata={'scraped_at': str(datetime.utcnow())}
+                                meta={'scraped_at': str(datetime.utcnow())}
                             )
                             
                             subject_data[subject_code] = {
@@ -188,7 +188,7 @@ class UAlbertaScraper(BaseScraper):
                                     name=subject_name,
                                     website_url=subject_link,
                                     faculty_associations=subject_data[subject_code]["faculties"],
-                                    metadata={'scraped_at': str(datetime.utcnow())}
+                                    meta={'scraped_at': str(datetime.utcnow())}
                                 )
                     
                     except Exception as e:
@@ -273,7 +273,7 @@ class UAlbertaScraper(BaseScraper):
                         level=level,
                         prerequisites=course_prerequisites,
                         website_url=course_link,
-                        metadata={
+                        meta={
                             'scraped_at': str(datetime.utcnow()),
                             'original_code': course_code
                         }
@@ -313,12 +313,12 @@ class UAlbertaScraper(BaseScraper):
             if response.status_code == 200:
                 exam_schedules = response.json()
                 
-                # Store raw exam data in university metadata for now
+                # Store raw exam data in university meta for now
                 # TODO: Parse and normalize exam data into proper course sections and exam schedules
                 services['university'].get_or_create_university(
                     code=self.university_code,
                     name=self.university_name,
-                    metadata={
+                    meta={
                         'exam_schedules': exam_schedules,
                         'exam_schedules_updated_at': str(datetime.utcnow())
                     }

@@ -130,10 +130,10 @@ def get_exam_schedules(university: str, db: Session = Depends(get_db)):
     if not uni:
         raise HTTPException(status_code=404, detail="University not supported")
     
-    # For now, return exam data from university metadata
+    # For now, return exam data from university meta
     # TODO: Implement proper exam schedule parsing and storage
-    if uni.metadata and 'exam_schedules' in uni.metadata:
-        return uni.metadata['exam_schedules']
+    if uni.meta and 'exam_schedules' in uni.meta:
+        return uni.meta['exam_schedules']
     
     return []
 
