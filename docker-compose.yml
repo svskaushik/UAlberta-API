@@ -21,8 +21,8 @@ services:
   api:
     build: .
     ports:
-      - target: 8000
-        published: 8000
+      - target: 8100
+        published: 8100
         protocol: tcp
         mode: host
     environment:
@@ -33,6 +33,12 @@ services:
         condition: service_healthy
     volumes:
       - .:/app
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8100
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

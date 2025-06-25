@@ -134,6 +134,6 @@ def get_course_legacy(course_code: str):
     return courses[course_code]
 
 if __name__ == "__main__":
-    port = int(os.getenv('API_PORT', 8000))
+    port = int(os.getenv('API_PORT', 8100))
     host = os.getenv('API_HOST', '0.0.0.0')
     uvicorn.run(app, host=host, port=port)
