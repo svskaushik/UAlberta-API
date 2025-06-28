@@ -1,12 +1,24 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, case
 from database.models import (
     University, Faculty, Subject, Course, Term, 
     CourseSection, ExamSchedule, Instructor, SyncLog
 )
 import json
 from datetime import datetime
+
+# Import cache utilities with fallback
+try:
+    from utils.cache import cached_course_search, course_search_cache
+    CACHE_AVAILABLE = True
+except ImportError:
+    CACHE_AVAILABLE = False
+    # Create dummy decorator if cache is not available
+    def cached_course_search(cache_enabled: bool = True):
+        def decorator(func):
+            return func
+        return decorator
 
 class UniversityService:
     def __init__(self, db: Session):
@@ -120,6 +132,25 @@ class CourseService:
         self.db.refresh(course)
         return course
     
+    def get_courses_summary_by_university(self, university_id: int, limit: int = 100, offset: int = 0) -> List[Course]:
+        """Get courses summary (only essential fields) for a university with pagination"""
+        return self.db.query(Course.id, Course.code, Course.name).filter(
+            Course.university_id == university_id
+        ).offset(offset).limit(limit).all()
+    
+    @cached_course_search(cache_enabled=CACHE_AVAILABLE)
+    def search_courses_summary(self, university_id: int, query: str, limit: int = 50) -> List[Course]:
+        """Search courses summary by name or code (only essential fields)"""
+        return self.db.query(Course.id, Course.code, Course.name).filter(
+            and_(
+                Course.university_id == university_id,
+                or_(
+                    Course.name.ilike(f'%{query}%'),
+                    Course.code.ilike(f'%{query}%')
+                )
+            )
+        ).limit(limit).all()
+
     def get_courses_by_university(self, university_id: int, limit: int = 100, offset: int = 0) -> List[Course]:
         """Get courses for a university with pagination"""
         return self.db.query(Course).filter(
@@ -138,7 +169,92 @@ class CourseService:
                 )
             )
         ).limit(limit).all()
-
+    
+    def search_courses_summary_by_faculty(self, university_id: int, query: str, faculty_code: Optional[str] = None, limit: int = 50) -> List[Course]:
+        """Search courses summary by name or code with optional faculty filter"""
+        base_query = self.db.query(Course.id, Course.code, Course.name).join(Subject).filter(
+            and_(
+                Course.university_id == university_id,
+                or_(
+                    Course.name.ilike(f'%{query}%'),
+                    Course.code.ilike(f'%{query}%')
+                )
+            )
+        )
+        
+        if faculty_code:
+            # Filter by faculty association
+            base_query = base_query.filter(
+                Subject.faculty_associations.contains([faculty_code])
+            )
+        
+        return base_query.limit(limit).all()
+    
+    @cached_course_search(cache_enabled=CACHE_AVAILABLE)
+    def search_courses_summary_optimized(self, university_id: int, query: str, limit: int = 50) -> List[Course]:
+        """
+        Optimized course search with relevance ranking.
+        Prioritizes exact matches, then prefix matches, then partial matches.
+        """
+        query_upper = query.upper()
+        
+        # Build the query with ranking/ordering for better relevance
+        results = self.db.query(Course.id, Course.code, Course.name).filter(
+            Course.university_id == university_id
+        ).filter(
+            or_(
+                Course.code.ilike(f'{query_upper}%'),  # Code starts with query
+                Course.code.ilike(f'%{query_upper}%'),  # Code contains query
+                Course.name.ilike(f'{query}%'),         # Name starts with query  
+                Course.name.ilike(f'%{query}%')         # Name contains query
+            )
+        ).order_by(
+            # Order by relevance: exact code match first, then code prefix, then name prefix, then partial matches
+            case(
+                (Course.code == query_upper, 1),
+                (Course.code.ilike(f'{query_upper}%'), 2), 
+                (Course.name.ilike(f'{query}%'), 3),
+                else_=4
+            ),
+            Course.code,  # Secondary sort by code for consistency
+            Course.name
+        ).limit(limit).all()
+        
+        return results
+    
+    def search_courses_summary_by_faculty_optimized(self, university_id: int, query: str, faculty_code: Optional[str] = None, limit: int = 50) -> List[Course]:
+        """
+        Optimized course search with faculty filter and relevance ranking.
+        """
+        query_upper = query.upper()
+        
+        base_query = self.db.query(Course.id, Course.code, Course.name).join(Subject).filter(
+            Course.university_id == university_id
+        ).filter(
+            or_(
+                Course.code.ilike(f'{query_upper}%'),
+                Course.code.ilike(f'%{query_upper}%'), 
+                Course.name.ilike(f'{query}%'),
+                Course.name.ilike(f'%{query}%')
+            )
+        )
+        
+        if faculty_code:
+            base_query = base_query.filter(
+                Subject.faculty_associations.contains([faculty_code])
+            )
+        
+        return base_query.order_by(
+            case(
+                (Course.code == query_upper, 1),
+                (Course.code.ilike(f'{query_upper}%'), 2),
+                (Course.name.ilike(f'{query}%'), 3), 
+                else_=4
+            ),
+            Course.code,
+            Course.name
+        ).limit(limit).all()
+    
 class ExamService:
     def __init__(self, db: Session):
         self.db = db
@@ -187,7 +303,7 @@ class SyncService:
         return sync_log
     
     def log_sync_complete(self, sync_log_id: int, status: str, records_processed: int = 0, 
-                         errors_count: int = 0, error_details: Dict = None):
+                         errors_count: int = 0, error_details: Optional[Dict] = None):
         """Log the completion of a sync operation"""
         sync_log = self.db.query(SyncLog).filter(SyncLog.id == sync_log_id).first()
         if sync_log:

@@ -10,7 +10,7 @@ CREATE TABLE universities (
     region VARCHAR(100),
     website_url TEXT,
     api_config JSONB, -- University-specific scraping configuration
-    metadata JSONB, -- Flexible data for university-specific info
+    meta JSONB, -- Flexible data for university-specific info
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -23,7 +23,7 @@ CREATE TABLE faculties (
     name VARCHAR(255) NOT NULL,
     website_url TEXT,
     dean_info JSONB, -- Dean name, contact, etc.
-    metadata JSONB, -- University-specific faculty data
+    meta JSONB, -- University-specific faculty data
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(university_id, code)
@@ -38,7 +38,7 @@ CREATE TABLE subjects (
     description TEXT,
     website_url TEXT,
     faculty_associations JSONB, -- Array of faculty codes this subject belongs to
-    metadata JSONB, -- University-specific subject data
+    meta JSONB, -- University-specific subject data
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(university_id, code)
@@ -60,7 +60,7 @@ CREATE TABLE courses (
     website_url TEXT,
     fees JSONB, -- Fee information, can vary by university
     schedule_info JSONB, -- Lecture/lab/seminar hours
-    metadata JSONB, -- University-specific course data
+    meta JSONB, -- University-specific course data
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(university_id, code)
@@ -77,7 +77,7 @@ CREATE TABLE terms (
     registration_start DATE,
     registration_end DATE,
     is_active BOOLEAN DEFAULT FALSE,
-    metadata JSONB,
+    meta JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(university_id, code)
 );
@@ -95,7 +95,7 @@ CREATE TABLE course_sections (
     status VARCHAR(50) DEFAULT 'open', -- 'open', 'closed', 'cancelled'
     instructor_info JSONB, -- Instructor details
     schedule JSONB, -- Days, times, locations
-    metadata JSONB,
+    meta JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -111,7 +111,7 @@ CREATE TABLE exam_schedules (
     location VARCHAR(255),
     duration_minutes INTEGER,
     special_instructions TEXT,
-    metadata JSONB,
+    meta JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -129,7 +129,7 @@ CREATE TABLE instructors (
     research_areas TEXT[],
     ratings JSONB, -- Average ratings, review counts, etc.
     salary_info JSONB, -- If available publicly
-    metadata JSONB,
+    meta JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -145,7 +145,7 @@ CREATE TABLE sync_logs (
     error_details JSONB,
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
-    metadata JSONB
+    meta JSONB
 );
 
 -- Indexes for performance
@@ -160,8 +160,23 @@ CREATE INDEX idx_instructors_university ON instructors(university_id);
 CREATE INDEX idx_sync_logs_university_type ON sync_logs(university_id, data_type);
 
 -- JSONB indexes for common queries
-CREATE INDEX idx_courses_metadata_gin ON courses USING GIN (metadata);
-CREATE INDEX idx_faculties_metadata_gin ON faculties USING GIN (metadata);
-CREATE INDEX idx_subjects_metadata_gin ON subjects USING GIN (metadata);
+CREATE INDEX idx_courses_meta_gin ON courses USING GIN (meta);
+CREATE INDEX idx_faculties_meta_gin ON faculties USING GIN (meta);
+CREATE INDEX idx_subjects_meta_gin ON subjects USING GIN (meta);
 CREATE INDEX idx_course_sections_schedule_gin ON course_sections USING GIN (schedule);
 CREATE INDEX idx_instructors_ratings_gin ON instructors USING GIN (ratings);
+
+-- Optimized indexes for course search functionality
+-- Basic composite indexes for faster ILIKE queries
+CREATE INDEX idx_courses_name_search ON courses(university_id, name);
+CREATE INDEX idx_courses_code_search ON courses(university_id, code);
+
+-- Advanced PostgreSQL indexes (apply these manually when setting up production DB)
+-- Text search indexes for faster full-text search:
+-- CREATE INDEX idx_courses_name_fts ON courses USING GIN (to_tsvector('english', name));
+-- CREATE INDEX idx_courses_code_fts ON courses USING GIN (to_tsvector('english', code));
+
+-- Trigram indexes for fuzzy matching (requires pg_trgm extension):
+-- CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- CREATE INDEX idx_courses_name_trgm ON courses USING GIN (name gin_trgm_ops);
+-- CREATE INDEX idx_courses_code_trgm ON courses USING GIN (code gin_trgm_ops);

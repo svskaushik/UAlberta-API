@@ -42,6 +42,7 @@ class UAlbertaScraper(BaseScraper):
     def get_faculties(self):
         """Scrape and store faculties in database"""
         services = self._get_db_services()
+        sync_log = None
         try:
             # Get or create university
             university = services['university'].get_or_create_university(
@@ -102,7 +103,8 @@ class UAlbertaScraper(BaseScraper):
             return faculty_data
             
         except Exception as e:
-            services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': str(e)})
+            if sync_log:
+                services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': str(e)})
             raise
         finally:
             services['db'].close()
@@ -110,6 +112,7 @@ class UAlbertaScraper(BaseScraper):
     def get_subjects(self, faculty_data=None):
         """Scrape and store subjects in database"""
         services = self._get_db_services()
+        sync_log = None
         try:
             university = services['university'].get_university_by_code(self.university_code)
             if not university:
@@ -198,7 +201,8 @@ class UAlbertaScraper(BaseScraper):
             return subject_data
             
         except Exception as e:
-            services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': str(e)})
+            if sync_log:
+                services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': str(e)})
             raise
         finally:
             services['db'].close()
@@ -206,6 +210,7 @@ class UAlbertaScraper(BaseScraper):
     def get_courses(self, subject_data=None):
         """Scrape and store courses in database"""
         services = self._get_db_services()
+        sync_log = None
         try:
             university = services['university'].get_university_by_code(self.university_code)
             if not university:
@@ -294,7 +299,8 @@ class UAlbertaScraper(BaseScraper):
             return course_data
             
         except Exception as e:
-            services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': str(e)})
+            if sync_log:
+                services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': str(e)})
             raise
         finally:
             services['db'].close()
@@ -302,6 +308,7 @@ class UAlbertaScraper(BaseScraper):
     def get_exam_schedules(self):
         """Scrape and store exam schedules in database"""
         services = self._get_db_services()
+        sync_log = None
         try:
             university = services['university'].get_university_by_code(self.university_code)
             if not university:
@@ -327,11 +334,13 @@ class UAlbertaScraper(BaseScraper):
                 services['sync'].log_sync_complete(sync_log.id, 'success', len(exam_schedules) if isinstance(exam_schedules, list) else 1)
                 return exam_schedules
             else:
-                services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': f'HTTP {response.status_code}'})
+                if sync_log:
+                    services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': f'HTTP {response.status_code}'})
                 return None
                 
         except Exception as e:
-            services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': str(e)})
+            if sync_log:
+                services['sync'].log_sync_complete(sync_log.id, 'failed', error_details={'error': str(e)})
             raise
         finally:
             services['db'].close()

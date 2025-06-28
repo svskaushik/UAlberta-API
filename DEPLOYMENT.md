@@ -28,6 +28,11 @@ SCRAPING_TIMEOUT=30
 # University-specific
 UALBERTA_BASE_URL=https://apps.ualberta.ca
 UALBERTA_EXAM_URL=https://www.ualberta.ca/api/datalist/spreadsheet/1kM0k0LenS9Z9LFH6F9qfbr7lyThRa0phTadDCs_MA-c/Sheet1
+
+# Performance & Caching (Optional)
+COURSE_CACHE_SIZE=1000
+COURSE_CACHE_TTL=300
+# REDIS_URL=redis://username:password@host:port/db  # For distributed caching
 ```
 
 ## Deployment Steps
@@ -108,6 +113,57 @@ curl -X POST https://your-domain.com/api/ualberta/scrape_all
 - Schedule regular data updates via cron
 - Implement exponential backoff for failed requests
 - Monitor university website changes
+
+## Performance Optimizations
+
+### Course Search Endpoints
+
+The API provides two course search endpoints optimized for different use cases:
+
+1. **Standard Search** (`/api/{university}/courses/search`)
+   - Basic search functionality
+   - Good for general use cases
+   - Cached results for frequent queries
+
+2. **Optimized Search** (`/api/{university}/courses/search/optimized`)
+   - Enhanced relevance ranking
+   - Prioritizes exact matches, then prefix matches
+   - Better user experience for dropdowns and autocomplete
+
+### Database Optimizations
+
+The schema includes optimized indexes for course search:
+- Standard B-tree indexes on `university_id` and `code`
+- Composite indexes for common search patterns
+- Optional full-text search indexes (apply manually)
+
+To enable advanced PostgreSQL search features:
+```sql
+-- Apply these manually to your production database
+CREATE INDEX idx_courses_name_fts ON courses USING GIN (to_tsvector('english', name));
+CREATE INDEX idx_courses_code_fts ON courses USING GIN (to_tsvector('english', code));
+
+-- For fuzzy search (requires pg_trgm extension)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_courses_name_trgm ON courses USING GIN (name gin_trgm_ops);
+CREATE INDEX idx_courses_code_trgm ON courses USING GIN (code gin_trgm_ops);
+```
+
+### Caching Configuration
+
+The API includes built-in memory caching for course search results:
+- Default cache size: 1000 entries
+- Default TTL: 5 minutes
+- Optional Redis support for distributed environments
+
+To enable Redis caching:
+1. Set `REDIS_URL` environment variable
+2. Install Redis: `pip install redis==5.0.1`
+3. Cache will automatically use Redis if available
+
+Monitor cache performance:
+- `GET /api/admin/cache/stats` - View cache statistics
+- `POST /api/admin/cache/clear` - Clear cache manually
 
 ## Scaling Considerations
 
